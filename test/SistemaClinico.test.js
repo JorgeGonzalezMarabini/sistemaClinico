@@ -3,7 +3,7 @@ const ganache = require("ganache-cli");
 
 const Web3 = require('web3');
 const web3 = new Web3();
-web3.setProvider(ganache.provider({gasLimit: 1000000000}));
+web3.setProvider(ganache.provider({gasLimit: 1000000000, total_accounts: 1, gasPrice: 1, default_balance_ether: 10000000}));
 
 const contracts = require('../compile');
 const sistemaClinicoContract = contracts["SistemaClinico.sol"].SistemaClinico;

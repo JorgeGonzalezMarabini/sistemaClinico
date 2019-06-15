@@ -55,13 +55,13 @@ before(async () => {
             })
             .send({from: ownerAddress, gas: '3000000'});
     datosSistemaAddress = datosSistemaClinico.options.address;
-    //Asignamos al sistema el contrato de los datos
-    await sistemaClinico.methods.setDatosAddress(datosSistemaAddress).send({from: ownerAddress});
 });
 
 describe('SistemaClinico-Administrativos', () => {
 
-    it('desplegar los contratos', () => {
+    it('desplegar los contratos', async () => {
+        //Asignamos al sistema el contrato de los datos
+        await sistemaClinico.methods.setDatosAddress(datosSistemaAddress).send({from: ownerAddress, gas: '9000000'});
         assert.ok(sistemaAddress);
         assert.ok(datosSistemaAddress);
     });

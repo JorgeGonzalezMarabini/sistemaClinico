@@ -59,16 +59,6 @@ before(async () => {
             })
             .send({from: ownerAddress, gas: '3000000'});
     datosSistemaAddress = datosSistemaClinico.options.address;
-    //Asignamos al sistema el contrato de los datos
-    await sistemaClinico.methods.setDatosAddress(datosSistemaAddress).send({from: ownerAddress});
-    //Aniadimos un nuevo administrativo
-    await sistemaClinico.methods.addAdministrativo(administrativoAddress).send({from: ownerAddress, gas: '9000000'});
-    //Aniadimos los medicos
-    await sistemaClinico.methods.addMedico(medicoAddress).send({from: administrativoAddress});
-    await sistemaClinico.methods.addMedico(otherMedicoAddress).send({from: administrativoAddress});
-    //Aniadimos los expedientes
-    await sistemaClinico.methods.addExpediente(paciente1Address, 2345).send({from: medicoAddress, gas: '9000000'});
-    await sistemaClinico.methods.addExpediente(paciente2Address, 2345).send({from: medicoAddress, gas: '9000000'});
 });
 
 describe('SistemaClinico-TrasladoExpedientes', () => {
@@ -76,10 +66,20 @@ describe('SistemaClinico-TrasladoExpedientes', () => {
     it('primisas del test', async () => {
         assert.ok(sistemaAddress);
         assert.ok(datosSistemaAddress);
+        //Asignamos al sistema el contrato de los datos
+        await sistemaClinico.methods.setDatosAddress(datosSistemaAddress).send({from: ownerAddress, gas: '9000000'});
+        //Aniadimos un nuevo administrativo
+        await sistemaClinico.methods.addAdministrativo(administrativoAddress).send({from: ownerAddress, gas: '9000000'});
         assert.ok(await sistemaClinico.methods.isAdministrativo(administrativoAddress).call({from: ownerAddress}));
+        //Aniadimos los medicos
+        await sistemaClinico.methods.addMedico(medicoAddress).send({from: administrativoAddress, gas: '9000000'});
         assert.ok(await sistemaClinico.methods.isMedico(medicoAddress).call({from: administrativoAddress}));
+        await sistemaClinico.methods.addMedico(otherMedicoAddress).send({from: administrativoAddress, gas: '9000000'});
         assert.ok(await sistemaClinico.methods.isMedico(otherMedicoAddress).call({from: administrativoAddress}));
+        //Aniadimos los expedientes
+        await sistemaClinico.methods.addExpediente(paciente1Address, 2345).send({from: medicoAddress, gas: '9000000'});
         assert.ok(await sistemaClinico.methods.isPaciente(paciente1Address).call({from: medicoAddress}));
+        await sistemaClinico.methods.addExpediente(paciente2Address, 2345).send({from: medicoAddress, gas: '9000000'});
         assert.ok(await sistemaClinico.methods.isPaciente(paciente2Address).call({from: medicoAddress}));
     });
 

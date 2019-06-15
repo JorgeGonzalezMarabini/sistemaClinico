@@ -57,13 +57,6 @@ before(async () => {
             })
             .send({from: ownerAddress, gas: '3000000'});
     datosSistemaAddress = datosSistemaClinico.options.address;
-    //Asignamos al sistema el contrato de los datos
-    await sistemaClinico.methods.setDatosAddress(datosSistemaAddress).send({from: ownerAddress});
-    //Aniadimos un nuevo administrativo
-    await sistemaClinico.methods.addAdministrativo(administrativoAddress).send({from: ownerAddress, gas: '9000000'});
-    //Aniadimos al medico
-    await sistemaClinico.methods.addMedico(medicoAddress).send({from: administrativoAddress, gas: '9000000'});
-    await sistemaClinico.methods.addMedico(otherMedicoAddress).send({from: administrativoAddress, gas: '9000000'});
 
 });
 
@@ -72,8 +65,15 @@ describe('SistemaClinico-Expedientes', () => {
     it('primisas del test', async () => {
         assert.ok(sistemaAddress);
         assert.ok(datosSistemaAddress);
+        //Asignamos al sistema el contrato de los datos
+        await sistemaClinico.methods.setDatosAddress(datosSistemaAddress).send({from: ownerAddress, gas: '9000000'});
+        //Aniadimos un nuevo administrativo
+        await sistemaClinico.methods.addAdministrativo(administrativoAddress).send({from: ownerAddress, gas: '9000000'});
         assert.ok(await sistemaClinico.methods.isAdministrativo(administrativoAddress).call({from: ownerAddress}));
+        //Aniadimos al medico
+        await sistemaClinico.methods.addMedico(medicoAddress).send({from: administrativoAddress, gas: '9000000'});
         assert.ok(await sistemaClinico.methods.isMedico(medicoAddress).call({from: administrativoAddress}));
+        await sistemaClinico.methods.addMedico(otherMedicoAddress).send({from: administrativoAddress, gas: '9000000'});
         assert.ok(await sistemaClinico.methods.isMedico(otherMedicoAddress).call({from: administrativoAddress}));
     });
 
