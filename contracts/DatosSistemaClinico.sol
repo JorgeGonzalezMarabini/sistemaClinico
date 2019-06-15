@@ -8,8 +8,11 @@ contract DatosSistemaClinico is Owned {
     using Arrays for address[];
 
     address internal sistemaClinico;
-    address[] internal medicosList;
+    //Administrativos
     address[] internal administrativosList;
+    //Medicos
+    address[] internal medicosList;
+    //Pacientes/Expedientes
     address[] internal pacientesList;
     mapping(address => address) internal expedientes;
     mapping(address => address[]) internal pacientesByMedico;
@@ -45,21 +48,9 @@ contract DatosSistemaClinico is Owned {
         sistemaClinico = _sistemaClinico;
     }
 
-    /**
-    * @notice Da de alta un nuevo medico
-    * @param _medicoToAdd La direccion del medico que se va a dar de alta
-    */
-    function addMedico(address _medicoToAdd) public onlySistema {
-        medicosList.push(_medicoToAdd);
-    }
-
-    /**
-    * @notice Da de baja un medico
-    * @param _medicoToRemove La direccion del medico que se va a dar de baja
-    */
-    function removeMedico(address _medicoToRemove) public onlySistema {
-        medicosList.deleteByAddress(_medicoToRemove);
-    }
+    /****************************************************************************************/
+    /********************************* ADMINISTRATIVOS **************************************/
+    /****************************************************************************************/
 
     /**
     * @notice Da de alta un nuevo administrativo en el sistema
@@ -76,6 +67,30 @@ contract DatosSistemaClinico is Owned {
     function removeAdministrativo(address _administrativoToRemove) public onlySistema {
         administrativosList.deleteByAddress(_administrativoToRemove);
     }
+
+    /****************************************************************************************/
+    /************************************ MEDICOS *******************************************/
+    /****************************************************************************************/
+
+    /**
+    * @notice Da de alta un nuevo medico
+    * @param _medicoToAdd La direccion del medico que se va a dar de alta
+    */
+    function addMedico(address _medicoToAdd) public onlySistema {
+        medicosList.push(_medicoToAdd);
+    }
+
+    /**
+    * @notice Da de baja un medico
+    * @param _medicoToRemove La direccion del medico que se va a dar de baja
+    */
+    function removeMedico(address _medicoToRemove) public onlySistema {
+        medicosList.deleteByAddress(_medicoToRemove);
+    }
+
+    /****************************************************************************************/
+    /********************************** EXPEDIENTES *****************************************/
+    /****************************************************************************************/
 
     /**
     * @notice Da de alta un nuevo paciente

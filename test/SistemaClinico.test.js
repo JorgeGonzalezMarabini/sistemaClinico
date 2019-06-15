@@ -13,6 +13,9 @@ let accounts;
 let sistemaClinico;
 let datosSistemaClinico;
 
+let sistemaClinicoAddress;
+let datosSistemaAddress;
+
 let ownerAddress;
 
 before(async () => {
@@ -27,21 +30,23 @@ before(async () => {
                 data: sistemaClinicoContract.evm.bytecode.object,
             })
             .send({from: ownerAddress, gas: '100000000'});
+    sistemaClinicoAddress = sistemaClinico.options.address;
 
     // Use one of those accounts to deploy the contract
     datosSistemaClinico = await new web3.eth.Contract(datosContract.abi)
             .deploy({
                 data: datosContract.evm.bytecode.object,
-                arguments: [accounts[1]]
+                arguments: [sistemaClinicoAddress]
             })
             .send({from: ownerAddress, gas: '3000000'});
+    datosSistemaAddress = datosSistemaClinico.options.address;
 });
 
 describe('SistemaClinico', () => {
 
     it('desplegar el contrato', () => {
-        // assert.ok(sistemaClinico.options.address);
-        assert.ok(datosSistemaClinico.options.address);
+        assert.ok(sistemaClinicoAddress);
+        assert.ok(datosSistemaAddress);
     });
 
 });

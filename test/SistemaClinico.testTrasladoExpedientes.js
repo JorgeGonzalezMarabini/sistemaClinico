@@ -3,7 +3,7 @@ const ganache = require("ganache-cli");
 
 const Web3 = require('web3');
 const web3 = new Web3();
-web3.setProvider(ganache.provider({gasLimit: 1000000000}));
+web3.setProvider(ganache.provider({gasLimit: 1000000000, total_accounts: 6}));
 
 const contracts = require('../compile');
 const sistemaClinicoContract = contracts["SistemaClinico.sol"].SistemaClinico;
@@ -40,8 +40,9 @@ before(async () => {
     ownerAddress = accounts[0];
     medicoAddress = accounts[1];
     paciente1Address = accounts[2];
-    paciente2Address = administrativoAddress = accounts[3];
-    otherMedicoAddress = accounts[4];
+    paciente2Address = accounts[3];
+    administrativoAddress = accounts[4];
+    otherMedicoAddress = accounts[5];
 
     //Desplegamos el sistema clinico
     sistemaClinico = await new web3.eth.Contract(sistemaClinicoContract.abi)
