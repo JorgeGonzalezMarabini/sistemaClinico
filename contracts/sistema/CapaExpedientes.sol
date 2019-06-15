@@ -34,7 +34,7 @@ contract CapaExpedientes is CapaMedicos {
     * @notice Comprueba que el sender sea un medico o un administrativo del sistema
     */
     modifier onlyMedicoOrAdministrativo() {
-        require(medicos[msg.sender] || administrativos[msg.sender], "Esta operacion solo puede realizarla un medico o un administrativo del sistema");
+        require(medicos[msg.sender] || datos.isAdministrativo(msg.sender), "Esta operacion solo puede realizarla un medico o un administrativo del sistema");
         _;
     }
 
@@ -159,7 +159,7 @@ contract CapaExpedientes is CapaMedicos {
     {
         Expediente expediente = Expediente(datos.getExpedienteAddress(_paciente));
         if(expediente.getEstado() == Expediente.Estado.Muerto) {
-            require(owner == msg.sender || administrativos[msg.sender], "Solo el propietario o un administrativo pueden consultar expedientes cerrados");
+            require(owner == msg.sender || datos.isAdministrativo(msg.sender), "Solo el propietario o un administrativo pueden consultar expedientes cerrados");
         } else {
             require(expediente.getMedicoAsignado() == msg.sender, "Solo el medico del expediente puede realizar operaciones sobre el");
         }

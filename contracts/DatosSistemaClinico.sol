@@ -9,6 +9,7 @@ contract DatosSistemaClinico is Owned {
 
     address internal sistemaClinico;
     //Administrativos
+    mapping(address => bool) internal administrativos;
     address[] internal administrativosList;
     //Medicos
     address[] internal medicosList;
@@ -57,7 +58,9 @@ contract DatosSistemaClinico is Owned {
     * @param _administrativoToAdd La direccion del administrativo que se va a dar de alta
     */
     function addAdministrativo(address _administrativoToAdd) public onlySistema {
+        require(!administrativos[_administrativoToAdd], "El administrativo ya pertenece al sistema");
         administrativosList.push(_administrativoToAdd);
+        administrativos[_administrativoToAdd] = true;
     }
 
     /**
@@ -65,7 +68,18 @@ contract DatosSistemaClinico is Owned {
     * @param _administrativoToRemove La direccion del administrativo que se va a dar de baja
     */
     function removeAdministrativo(address _administrativoToRemove) public onlySistema {
+        require(administrativos[_administrativoToRemove], "El administrativo no pertenece al sistema");
         administrativosList.deleteByAddress(_administrativoToRemove);
+        administrativos[_administrativoToRemove] = false;
+    }
+    
+    /**
+    * @notice Comprueba si una persona es administrativo
+    * @param _administrativoToTest La direccion del administrativo que hay que comprobar
+    * @return Booleano que indica si es administrativo o no
+    */
+    function isAdministrativo(address _administrativoToTest) public view onlySistema returns (bool) {
+        return administrativos[_administrativoToTest];
     }
 
     /****************************************************************************************/
