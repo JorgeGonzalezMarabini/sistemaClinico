@@ -8,13 +8,22 @@ web3.setProvider(ganache.provider({gasLimit: 1000000000, total_accounts: 6}));
 const contracts = require('../compile');
 const sistemaClinicoContract = contracts["SistemaClinico.sol"].SistemaClinico;
 const datosContract = contracts["DatosSistemaClinico.sol"].DatosSistemaClinico;
+const adminContract = contracts["sistema/CapaAdministrativa.sol"].CapaAdministrativa;
+const medicosContract = contracts["sistema/CapaMedicos.sol"].CapaMedicos;
+const expedientesContract = contracts["sistema/CapaExpedientes.sol"].CapaExpedientes;
 
 let accounts;
 let sistemaClinico;
 let datosSistemaClinico;
+let capaAdministrativa;
+let capaMedicos;
+let capaExpedientes;
 
 let sistemaAddress;
 let datosSistemaAddress;
+let capaAdministrativaAddress;
+let capaMedicosAddress;
+let capaExpedientesAddress;
 
 let ownerAddress;
 let medicoAddress;
@@ -59,15 +68,51 @@ before(async () => {
             })
             .send({from: ownerAddress, gas: '3000000'});
     datosSistemaAddress = datosSistemaClinico.options.address;
+    //Desplegamos la capa administrativa
+    capaAdministrativa = await new web3.eth.Contract(adminContract.abi)
+                .deploy({
+                    data: adminContract.evm.bytecode.object,
+                    arguments: [sistemaAddress, datosSistemaAddress]
+                })
+                .send({from: ownerAddress, gas: '3000000'});
+    capaAdministrativaAddress = capaAdministrativa.options.address;
+    //Desplegamos la capa medicos
+    capaMedicos = await new web3.eth.Contract(medicosContract.abi)
+                .deploy({
+                    data: medicosContract.evm.bytecode.object,
+                    arguments: [sistemaAddress, datosSistemaAddress]
+                })
+                .send({from: ownerAddress, gas: '3000000'});
+    capaMedicosAddress = capaMedicos.options.address;
+    //Desplegamos la capa expedientes
+    capaExpedientes = await new web3.eth.Contract(expedientesContract.abi)
+                .deploy({
+                    data: expedientesContract.evm.bytecode.object,
+                    arguments: [sistemaAddress, datosSistemaAddress]
+                })
+                .send({from: ownerAddress, gas: '30000000'});
+    capaExpedientesAddress = capaExpedientes.options.address;
 });
 
 describe('SistemaClinico-TrasladoExpedientes', () => {
 
+    let pacientesMedicoBefore;
+    let pacientesOtherMedicoBefore;
+
     it('primisas del test', async () => {
         assert.ok(sistemaAddress);
         assert.ok(datosSistemaAddress);
-        //Asignamos al sistema el contrato de los datos
-        await sistemaClinico.methods.setDatosAddress(datosSistemaAddress).send({from: ownerAddress, gas: '9000000'});
+        assert.ok(capaAdministrativaAddress);
+        assert.ok(capaMedicosAddress);
+        assert.ok(capaExpedientesAddress);
+        //Agregamos la capa de servicios como servicios autorizados al acceso de los datos del sistema
+        await datosSistemaClinico.methods.addServicioSistemaClinico(capaAdministrativaAddress).send({from: ownerAddress, gas: '9000000'});
+        await datosSistemaClinico.methods.addServicioSistemaClinico(capaMedicosAddress).send({from: ownerAddress, gas: '9000000'});
+        await datosSistemaClinico.methods.addServicioSistemaClinico(capaExpedientesAddress).send({from: ownerAddress, gas: '9000000'});
+        //Informamos al sisitema clinico de la capa de servicios
+        await sistemaClinico.methods.setCapaAdministrativa(capaAdministrativaAddress).send({from: ownerAddress, gas: '9000000'});
+        await sistemaClinico.methods.setCapaMedicos(capaMedicosAddress).send({from: ownerAddress, gas: '9000000'});
+        await sistemaClinico.methods.setCapaExpedientes(capaExpedientesAddress).send({from: ownerAddress, gas: '9000000'});
         //Aniadimos un nuevo administrativo
         await sistemaClinico.methods.addAdministrativo(administrativoAddress).send({from: ownerAddress, gas: '9000000'});
         assert.ok(await sistemaClinico.methods.isAdministrativo(administrativoAddress).call({from: ownerAddress}));
@@ -81,13 +126,9 @@ describe('SistemaClinico-TrasladoExpedientes', () => {
         assert.ok(await sistemaClinico.methods.isPaciente(paciente1Address).call({from: medicoAddress}));
         await sistemaClinico.methods.addExpediente(paciente2Address, 2345).send({from: medicoAddress, gas: '9000000'});
         assert.ok(await sistemaClinico.methods.isPaciente(paciente2Address).call({from: medicoAddress}));
-    });
-
-    /******************************** TRASLADA EXPEDIENTES **************************************/
-
-    it('transfiere expedientes', async () => {
-        var pacientesMedicoBefore = await sistemaClinico.methods.getPacientesFromMedico(medicoAddress).call({from: medicoAddress, gas: '9000000'});
-        var pacientesOtherMedicoBefore = await sistemaClinico.methods.getPacientesFromMedico(otherMedicoAddress).call({from: otherMedicoAddress, gas: '9000000'});
+        //Comprobamos que los pacientes han sido correctamente asignados a los medicos
+        pacientesMedicoBefore = await sistemaClinico.methods.getPacientesFromMedico(medicoAddress).call({from: medicoAddress, gas: '9000000'});
+        pacientesOtherMedicoBefore = await sistemaClinico.methods.getPacientesFromMedico(otherMedicoAddress).call({from: otherMedicoAddress, gas: '9000000'});
         //Comprobamos que el medico tiene los 2 expediente
         assert.strictEqual(pacientesMedicoBefore.length,2);
         assert.strictEqual(pacientesOtherMedicoBefore.length,0);
@@ -99,33 +140,6 @@ describe('SistemaClinico-TrasladoExpedientes', () => {
         assert.strictEqual(expediente2Before.medicoAsignado, medicoAddress);
         assert.strictEqual(expediente2Before.titular, paciente2Address);
 
-        //Transferimos los expedientes a un nuevo medico
-        var result = await sistemaClinico.methods.transfiereExpedientes(medicoAddress, otherMedicoAddress).send({from: administrativoAddress, gas: '9000000'});
-
-        //Comprobamos los eventos
-        const eventoExp1 = result.events.TrasladoExpediente[0];
-        assert.strictEqual(eventoExp1.returnValues._newMedico, otherMedicoAddress);
-        assert.strictEqual(eventoExp1.returnValues._oldMedico, medicoAddress);
-        assert.strictEqual(eventoExp1.returnValues._paciente, paciente1Address);
-        const eventoExp2 = result.events.TrasladoExpediente[1];
-        assert.strictEqual(eventoExp2.returnValues._newMedico, otherMedicoAddress);
-        assert.strictEqual(eventoExp2.returnValues._oldMedico, medicoAddress);
-        assert.strictEqual(eventoExp2.returnValues._paciente, paciente2Address);
-        //Obtenemos los pacientes de ambos medicos despues de la transferencia
-        var pacientesMedicoAfter = await sistemaClinico.methods.getPacientesFromMedico(medicoAddress).call({from: medicoAddress, gas: '9000000'});
-        var pacientesOtherMedicoAfter = await sistemaClinico.methods.getPacientesFromMedico(otherMedicoAddress).call({from: otherMedicoAddress, gas: '9000000'});
-        //Comprobamos que el medico anterior tiene un expediente menos asignado
-        assert.strictEqual(pacientesMedicoAfter.length, 0);
-        //Comprobamos que el nuevo medico tiene un expediente mas asignado
-        assert.strictEqual(pacientesOtherMedicoAfter.length, 2);
-        //Comprobamos que el paciente se ha asignado correctamente en el sistema
-        assert.strictEqual(pacientesOtherMedicoAfter[0], pacientesMedicoBefore[0]);
-        assert.strictEqual(pacientesOtherMedicoAfter[1], pacientesMedicoBefore[1]);
-        //Comprobamos que los expedientes tienen el nuevo medico asignado
-        var expediente1After = await sistemaClinico.methods.getExpediente(pacientesMedicoBefore[0]).call({from: otherMedicoAddress});
-        var expediente2After = await sistemaClinico.methods.getExpediente(pacientesMedicoBefore[1]).call({from: otherMedicoAddress});
-        assert.strictEqual(expediente1After.medicoAsignado, otherMedicoAddress);
-        assert.strictEqual(expediente2After.medicoAsignado, otherMedicoAddress);
     });
 
     /******************************** TRASLADA EXPEDIENTES ERRORS **************************************/
@@ -156,5 +170,39 @@ describe('SistemaClinico-TrasladoExpedientes', () => {
                 await assertException(async () => { await sistemaClinico.methods.transfiereExpedientes(paciente2Address, otherMedicoAddress).send({from: administrativoAddress, gas: '9000000'})}),
                 "Solo se pueden transferir expedientes de medicos del sistema"
         );
+    });
+
+    /******************************** TRASLADA EXPEDIENTES **************************************/
+
+    it('transfiere expedientes', async () => {
+        //Transferimos los expedientes a un nuevo medico
+        var result = await sistemaClinico.methods.transfiereExpedientes(medicoAddress, otherMedicoAddress).send({from: administrativoAddress, gas: '9000000'});
+
+        //Comprobamos los eventos
+        const eventoExp1 = web3.eth.abi.decodeParameters(['address', 'address', 'address', 'address'], result.events['0'].raw.data);
+        assert.strictEqual(eventoExp1['0'], paciente1Address);
+        assert.strictEqual(eventoExp1['1'], medicoAddress);
+        assert.strictEqual(eventoExp1['2'], otherMedicoAddress);
+        assert.strictEqual(eventoExp1['3'], administrativoAddress);
+        const eventoExp2 = web3.eth.abi.decodeParameters(['address', 'address', 'address', 'address'], result.events['1'].raw.data);
+        assert.strictEqual(eventoExp2['0'], paciente2Address);
+        assert.strictEqual(eventoExp2['1'], medicoAddress);
+        assert.strictEqual(eventoExp2['2'], otherMedicoAddress);
+        assert.strictEqual(eventoExp2['3'], administrativoAddress);
+        //Obtenemos los pacientes de ambos medicos despues de la transferencia
+        var pacientesMedicoAfter = await sistemaClinico.methods.getPacientesFromMedico(medicoAddress).call({from: medicoAddress, gas: '9000000'});
+        var pacientesOtherMedicoAfter = await sistemaClinico.methods.getPacientesFromMedico(otherMedicoAddress).call({from: otherMedicoAddress, gas: '9000000'});
+        //Comprobamos que el medico anterior tiene un expediente menos asignado
+        assert.strictEqual(pacientesMedicoAfter.length, 0);
+        //Comprobamos que el nuevo medico tiene un expediente mas asignado
+        assert.strictEqual(pacientesOtherMedicoAfter.length, 2);
+        //Comprobamos que el paciente se ha asignado correctamente en el sistema
+        assert.strictEqual(pacientesOtherMedicoAfter[0], pacientesMedicoBefore[0]);
+        assert.strictEqual(pacientesOtherMedicoAfter[1], pacientesMedicoBefore[1]);
+        //Comprobamos que los expedientes tienen el nuevo medico asignado
+        var expediente1After = await sistemaClinico.methods.getExpediente(pacientesMedicoBefore[0]).call({from: otherMedicoAddress});
+        var expediente2After = await sistemaClinico.methods.getExpediente(pacientesMedicoBefore[1]).call({from: otherMedicoAddress});
+        assert.strictEqual(expediente1After.medicoAsignado, otherMedicoAddress);
+        assert.strictEqual(expediente2After.medicoAsignado, otherMedicoAddress);
     });
 });

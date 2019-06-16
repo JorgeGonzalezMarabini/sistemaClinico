@@ -3,7 +3,7 @@ const ganache = require("ganache-cli");
 
 const Web3 = require('web3');
 const web3 = new Web3();
-web3.setProvider(ganache.provider({gasLimit: 1000000000}));
+web3.setProvider(ganache.provider({gasLimit: 1000000000, total_accounts: 6}));
 
 const contracts = require('../compile');
 const datosContract = contracts["DatosSistemaClinico.sol"].DatosSistemaClinico;
@@ -16,6 +16,7 @@ let sistemaAddress;
 let medicoAddress;
 let pacienteAddress;
 let administrativoAddress;
+let servicioSistemaAddress;
 
 async function assertException(funcion) {
     let error = false;
@@ -36,6 +37,7 @@ before(async () => {
     medicoAddress = accounts[2];
     pacienteAddress = accounts[3];
     administrativoAddress = accounts[4];
+    servicioSistemaAddress = accounts[5];
 
     // Use one of those accounts to deploy the contract
     datosSistemaClinico = await new web3.eth.Contract(datosContract.abi)
@@ -50,13 +52,13 @@ describe('DatosSistemaClinico', () => {
 
     it('desplegar el contrato', async () => {
         assert.ok(datosSistemaClinico.options.address);
-        assert.strictEqual(await datosSistemaClinico.methods.getSistemaClinico().call({from: ownerAddress}), sistemaAddress);
+        await datosSistemaClinico.methods.addServicioSistemaClinico(servicioSistemaAddress).send({from: ownerAddress, gas: '9000000'});
     });
 
     /******************************** MEDICOS **************************************/
 
     it('add medico', async () => {
-        await datosSistemaClinico.methods.addMedico(medicoAddress).send({from: sistemaAddress, gas: '9000000'});
+        await datosSistemaClinico.methods.addMedico(medicoAddress).send({from: servicioSistemaAddress, gas: '9000000'});
         const medicos = await datosSistemaClinico.methods.getMedicosList().call({from: ownerAddress});
         assert.strictEqual(medicos.length, 1);
         assert.strictEqual(medicos[0], medicoAddress);
@@ -65,12 +67,12 @@ describe('DatosSistemaClinico', () => {
     it('add medico error', async () => {
         assert.ok(
                 await assertException(async () => { await datosSistemaClinico.methods.addMedico(medicoAddress).send({from: ownerAddress, gas: '9000000'})}),
-                "Solo el sistema clinico puede aniadir nuevos medicos"
+                "Solo un servicio del sistema clinico puede aniadir nuevos medicos"
         );
     });
 
     it('remove medico', async () => {
-        await datosSistemaClinico.methods.removeMedico(medicoAddress).send({from: sistemaAddress, gas: '9000000'});
+        await datosSistemaClinico.methods.removeMedico(medicoAddress).send({from: servicioSistemaAddress, gas: '9000000'});
         const medicos = await datosSistemaClinico.methods.getMedicosList().call({from: ownerAddress});
         assert.strictEqual(medicos.length, 0);
     });
@@ -78,14 +80,14 @@ describe('DatosSistemaClinico', () => {
     it('remove medico error', async () => {
         assert.ok(
                 await assertException(async () => { await datosSistemaClinico.methods.removeMedico(medicoAddress).send({from: ownerAddress, gas: '9000000'})}),
-                "Solo el sistema clinico puede borrar medicos"
+                "Solo un servicio del sistema clinico puede aniadir nuevos medicos"
         );
     });
 
     /******************************** PACIENTES **************************************/
 
     it('add paciente', async () => {
-        await datosSistemaClinico.methods.addPaciente(pacienteAddress, ownerAddress).send({from: sistemaAddress, gas: '9000000'});
+        await datosSistemaClinico.methods.addPaciente(pacienteAddress, ownerAddress).send({from: servicioSistemaAddress, gas: '9000000'});
         const pacientes = await datosSistemaClinico.methods.getPacientesList().call({from: ownerAddress});
         assert.strictEqual(pacientes.length, 1);
         assert.strictEqual(pacientes[0], pacienteAddress);
@@ -94,14 +96,14 @@ describe('DatosSistemaClinico', () => {
     it('add paciente error', async () => {
         assert.ok(
                 await assertException(async () => { await datosSistemaClinico.methods.addPaciente(pacienteAddress).send({from: ownerAddress, gas: '9000000'})}),
-                "Solo el sistema clinico puede aniadir nuevos pacientes"
+                "Solo un servicio del sistema clinico puede aniadir nuevos pacientes"
         );
     });
 
     /******************************** ADMINISTRATIVO **************************************/
 
     it('add administrativo', async () => {
-        await datosSistemaClinico.methods.addAdministrativo(administrativoAddress).send({from: sistemaAddress, gas: '9000000'});
+        await datosSistemaClinico.methods.addAdministrativo(administrativoAddress).send({from: servicioSistemaAddress, gas: '9000000'});
         const administrativos = await datosSistemaClinico.methods.getAdministrativosList().call({from: ownerAddress});
         assert.strictEqual(administrativos.length, 1);
         assert.strictEqual(administrativos[0], administrativoAddress);
@@ -110,12 +112,12 @@ describe('DatosSistemaClinico', () => {
     it('add administrativo error', async () => {
         assert.ok(
                 await assertException(async () => { await datosSistemaClinico.methods.addAdministrativo(administrativoAddress).send({from: ownerAddress, gas: '9000000'})}),
-                "Solo el sistema clinico puede aniadir nuevos administrativos"
+                "Solo un servicio del sistema clinico puede aniadir nuevos administrativos"
         );
     });
 
     it('remove administrativo', async () => {
-        await datosSistemaClinico.methods.removeAdministrativo(administrativoAddress).send({from: sistemaAddress, gas: '9000000'});
+        await datosSistemaClinico.methods.removeAdministrativo(administrativoAddress).send({from: servicioSistemaAddress, gas: '9000000'});
         const medicos = await datosSistemaClinico.methods.getAdministrativosList().call({from: ownerAddress});
         assert.strictEqual(medicos.length, 0);
     });
@@ -123,7 +125,7 @@ describe('DatosSistemaClinico', () => {
     it('remove administrativo error', async () => {
         assert.ok(
                 await assertException(async () => { await datosSistemaClinico.methods.removeAdministrativo(administrativoAddress).send({from: ownerAddress, gas: '9000000'})}),
-                "Solo el sistema clinico puede borrar medicos"
+                "Solo un servicio del sistema clinico puede borrar administrativos"
         );
     });
 

@@ -8,13 +8,16 @@ web3.setProvider(ganache.provider({gasLimit: 1000000000}));
 const contracts = require('../compile');
 const sistemaClinicoContract = contracts["SistemaClinico.sol"].SistemaClinico;
 const datosContract = contracts["DatosSistemaClinico.sol"].DatosSistemaClinico;
+const adminContract = contracts["sistema/CapaAdministrativa.sol"].CapaAdministrativa;
 
 let accounts;
 let sistemaClinico;
 let datosSistemaClinico;
+let capaAdministrativa;
 
 let sistemaAddress;
 let datosSistemaAddress;
+let capaAdministrativaAddress;
 
 let ownerAddress;
 let administrativoAddress;
@@ -55,22 +58,33 @@ before(async () => {
             })
             .send({from: ownerAddress, gas: '3000000'});
     datosSistemaAddress = datosSistemaClinico.options.address;
+    //Desplegamos la capa administrativa
+    capaAdministrativa = await new web3.eth.Contract(adminContract.abi)
+                .deploy({
+                    data: adminContract.evm.bytecode.object,
+                    arguments: [sistemaAddress, datosSistemaAddress]
+                })
+                .send({from: ownerAddress, gas: '3000000'});
+    capaAdministrativaAddress = capaAdministrativa.options.address;
 });
 
 describe('SistemaClinico-Administrativos', () => {
 
     it('desplegar los contratos', async () => {
-        //Asignamos al sistema el contrato de los datos
-        await sistemaClinico.methods.setDatosAddress(datosSistemaAddress).send({from: ownerAddress, gas: '9000000'});
         assert.ok(sistemaAddress);
         assert.ok(datosSistemaAddress);
+        assert.ok(capaAdministrativaAddress);
+        //Agregamos la capa administrativa como servicio autorizado al acceso de los datos del sistema
+        await datosSistemaClinico.methods.addServicioSistemaClinico(capaAdministrativaAddress).send({from: ownerAddress, gas: '9000000'});
+        //Informamos al sisitema clinico de la direccion de la capa administrativa
+        await sistemaClinico.methods.setCapaAdministrativa(capaAdministrativaAddress).send({from: ownerAddress, gas: '9000000'});
     });
 
     /******************************** ADD ADMINISTRATIVO **************************************/
 
     it('add administrativo', async () => {
         //Comprobamos que en el sistema se ha almacenado correctamente
-        await sistemaClinico.methods.addAdministrativo(administrativoAddress).send({from: ownerAddress, gas: '9000000'});
+        await sistemaClinico.methods.addAdministrativo(administrativoAddress).send({from: ownerAddress, gas: '100000000'});
         assert.ok(await sistemaClinico.methods.isAdministrativo(administrativoAddress).call({from: ownerAddress}));
         //Comprobamos que en los datos se ha almacenado correctamente
         const administrativos = await datosSistemaClinico.methods.getAdministrativosList().call({from: ownerAddress});

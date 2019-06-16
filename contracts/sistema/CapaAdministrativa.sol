@@ -1,24 +1,22 @@
 pragma solidity ^0.4.25;
 
 import "./BaseSistemaClinico.sol";
+import "../sistemaInterface/CapaAdministrativaInterface.sol";
 
-contract CapaAdministrativa is BaseSistemaClinico {
+contract CapaAdministrativa is BaseSistemaClinico, CapaAdministrativaInterface {
 
     /**
-    * @notice Comprueba que el sender sea un administrativo del sistema
+    * @notice Constructor del contrato
+    * @param _sistemaClinico La direccion del sistema clinico
+    * @param _datos La direccion del contrato de los datos
     */
-    modifier onlyAdministrativo() {
-        require(datos.isAdministrativo(msg.sender), "Esta operacion solo puede realizarla un administrativo del sistema");
-        _;
-    }
-
-
+    constructor(address _sistemaClinico, address _datos) public BaseSistemaClinico(_sistemaClinico, _datos) {}
 
     /**
     * @notice Da de alta un nuevo administrativo en el sistema
     * @param _administrativoToAdd La direccion del administrativo que se va a dar de alta
     */
-    function addAdministrativo(address _administrativoToAdd) public onlyOwner {
+    function addAdministrativo(address _administrativoToAdd, address _oriCaller) public onlySistema onlyCrossOwner(_oriCaller) {
         datos.addAdministrativo(_administrativoToAdd);
     }
 
@@ -26,7 +24,7 @@ contract CapaAdministrativa is BaseSistemaClinico {
     * @notice Da de baja un administrativo en el sistema
     * @param _administrativoToRemove La direccion del administrativo que se va a dar de baja
     */
-    function removeAdministrativo(address _administrativoToRemove) public onlyOwner {
+    function removeAdministrativo(address _administrativoToRemove, address _oriCaller) public onlySistema onlyCrossOwner(_oriCaller) {
         datos.removeAdministrativo(_administrativoToRemove);
     }
 
@@ -35,7 +33,7 @@ contract CapaAdministrativa is BaseSistemaClinico {
     * @param _supuestoAdministrativo La direccion del administrativo que hay que comprobar
     * @return Booleano que indica si es administrativo o no
     */
-    function isAdministrativo(address _supuestoAdministrativo) public view onlyOwner returns (bool) {
+    function isAdministrativo(address _supuestoAdministrativo, address _oriCaller) public view onlySistema onlyCrossOwner(_oriCaller) returns (bool) {
         return datos.isAdministrativo(_supuestoAdministrativo);
     }
 

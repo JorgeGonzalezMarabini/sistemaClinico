@@ -11,7 +11,7 @@ contract Expediente {
 
     event AltaTratamiento(address _titular, address _medico, uint _idxTratamiento);
     event ModificacionTratamiento(address _titular, address _medico, uint _idxTratamiento);
-    event BajaTratamiento(address _titular, address _solicitante, uint _idxTratamiento);
+    event BajaTratamiento(address _titular, address _medico, uint _idxTratamiento);
 //    event ConsultaTratamiento(address _titular, address _medico, uint _idxTratamiento);
 
     enum Estado {
@@ -127,13 +127,14 @@ contract Expediente {
     /**
     * @notice Cierra el expediente de un paciente marcondolo como fallecido
     * @dev No desasignamos el medico dentro del expediente para saber quien fue quien diagnostico la muerte
+    * @param _medico El medico que ha ordenado el cierre del expediente
     */
-    function close() public onlySistema isNotDead {
+    function close(address _medico) public onlySistema isNotDead {
         //Primero cerramos todos los tratamientos abiertos
         for(uint i = 0;i < tratamientosAbiertos.length; i++)
         {
             tratamientos[tratamientosAbiertos[i]].fechaFin = now;
-            emit BajaTratamiento(titular, sistemaClinico, tratamientosAbiertos[i]);
+            emit BajaTratamiento(titular, _medico, tratamientosAbiertos[i]);
         }
         tratamientosAbiertos.length = 0;
         estado = Estado.Muerto;
@@ -150,11 +151,11 @@ contract Expediente {
     * @param _descripcion Descripcion del tratamiento a seguir
     * @return El identificador del tratamiendo creado
     */
-    function addTratamiento(string _dolencia, string _descripcion) public onlySistema isAlive returns(uint) {
+    function addTratamiento(string _dolencia, string _descripcion, address _medico) public onlySistema isAlive returns(uint) {
         tratamientos.push(Tratamiento(now, 0, _dolencia, _descripcion));
         uint idx = tratamientos.length -1;
         tratamientosAbiertos.push(idx);
-        emit AltaTratamiento(titular, medicoAsignado, idx);
+        emit AltaTratamiento(titular, _medico, idx);
         return idx;
     }
 
@@ -163,16 +164,16 @@ contract Expediente {
     * @param _idxTratamiento El identificador del tratamiento
     * @param _descripcion La descripcion a modificar
     */
-    function updateTratamiento(uint _idxTratamiento, string _descripcion) public onlySistema isAlive onlyTratamientoAbierto(_idxTratamiento) {
+    function updateTratamiento(uint _idxTratamiento, string _descripcion, address _medico) public onlySistema isAlive onlyTratamientoAbierto(_idxTratamiento) {
         tratamientos[_idxTratamiento].descripcion = _descripcion;
-        emit ModificacionTratamiento(titular, medicoAsignado, _idxTratamiento);
+        emit ModificacionTratamiento(titular, _medico, _idxTratamiento);
     }
 
     /**
     * @notice Da por finalizado el tratamiento
     * @param _idxTratamiento Identificador del tratamiento
     */
-    function closeTratamiento(uint _idxTratamiento) public onlySistema isAlive onlyTratamientoAbierto(_idxTratamiento) {
+    function closeTratamiento(uint _idxTratamiento, address _medico) public onlySistema isAlive onlyTratamientoAbierto(_idxTratamiento) {
         tratamientos[_idxTratamiento].fechaFin = now;
         uint _idxTratAbierto;
         for(uint i = 0; i < tratamientosAbiertos.length; i++) {
@@ -183,7 +184,7 @@ contract Expediente {
             }
         }
         tratamientosAbiertos.deleteByIndex(_idxTratAbierto);
-        emit BajaTratamiento(titular, medicoAsignado, _idxTratamiento);
+        emit BajaTratamiento(titular, _medico, _idxTratamiento);
     }
 
     /**

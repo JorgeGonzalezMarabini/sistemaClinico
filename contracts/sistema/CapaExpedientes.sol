@@ -1,50 +1,41 @@
 pragma solidity ^0.4.25;
 
-import "./CapaMedicos.sol";
-import "../Expediente.sol";
+import "./BaseSistemaClinico.sol";
+import "../sistemaInterface/CapaExpedientesInterface.sol";
 
-contract CapaExpedientes is CapaMedicos {
+
+contract CapaExpedientes is BaseSistemaClinico, CapaExpedientesInterface  {
 
     event AltaExpediente(address _medico, address _paciente);
-    event TrasladoExpediente(address _paciente, address _oldMedico, address _newMedico);
+    event TrasladoExpediente(address _paciente, address _oldMedico, address _newMedico, address _administrativo);
     event BajaExpediente(address _medico, address _paciente);
-
-    mapping(address => bool) internal pacientes;
+    
+    /**
+    * @notice Constructor del contrato
+    * @param _sistemaClinico La direccion del sistema clinico
+    * @param _datos La direccion del contrato de los datos
+    */
+    constructor(address _sistemaClinico, address _datos) public BaseSistemaClinico(_sistemaClinico, _datos) {}
 
     /**
-    * @notice Comprueba que el sender sea el medico asignado del paciente pasado
-    * @param _paciente La direccion del paciente
+    * @notice Comprueba que el caller sea un medico o un administrativo del sistema
     */
-    modifier onlyMedicoAsignado(address _paciente) {
-        Expediente expediente = Expediente(datos.getExpedienteAddress(_paciente));
-        require(expediente.getMedicoAsignado() == msg.sender, "Solo el medico del expediente puede realizar cambios sobre el");
+    modifier onlyCrossMedicoOrAdministrativo(address _caller) {
+        require(datos.isMedico(_caller) || datos.isAdministrativo(_caller), "Esta operacion solo puede realizarla un medico o un administrativo del sistema");
         _;
     }
 
-    /**
-    * @notice Comprueba que la direccion pasada corresponde a un paciente del sistema
-    * @param _pacienteToTest La direccion a comprobar
-    */
-    modifier onlyPaciente(address _pacienteToTest) {
-        require(pacientes[_pacienteToTest], "El usuario no es un paciente del sistema");
-        _;
-    }
-
-    /**
-    * @notice Comprueba que el sender sea un medico o un administrativo del sistema
-    */
-    modifier onlyMedicoOrAdministrativo() {
-        require(medicos[msg.sender] || datos.isAdministrativo(msg.sender), "Esta operacion solo puede realizarla un medico o un administrativo del sistema");
-        _;
-    }
+    /****************************************************************************************/
+    /*********************************** EXPEDIENTES ****************************************/
+    /****************************************************************************************/
 
     /**
     * @notice Crea un nuevo expediente para un paciente dado
     * @dev Solo un medico deberia poder crear nuevos expedientes
     * @param _paciente La direccion del paciente al que se quiere aniadir el expediente
     */
-    function addExpediente(address _paciente) public onlyMedico {
-        addExpediente(_paciente, now);
+    function addExpediente(address _paciente, address _oriCaller) public onlySistema onlyCrossMedico(_oriCaller) {
+        addExpediente(_paciente, now, _oriCaller);
     }
 
     /**
@@ -53,16 +44,14 @@ contract CapaExpedientes is CapaMedicos {
     * @param _paciente La direccion del paciente al que se quiere aniadir el expediente
     * @param _fechaNacimiento La fecha de nacimiento del paciente
     */
-    function addExpediente(address _paciente, uint _fechaNacimiento) public onlyMedico {
-        require(!pacientes[_paciente], "El paciente ya tiene un expediente asociado");
+    function addExpediente(address _paciente, uint _fechaNacimiento, address _oriCaller) public onlySistema onlyCrossMedico(_oriCaller) {
         require(_fechaNacimiento <= now, "La fecha de nacimiento no puede ser mayor que la fecha actual");
         //Aniadimos el expediente a la lista de expedientes
-        Expediente expediente = new Expediente(_paciente, msg.sender, _fechaNacimiento);
+        Expediente expediente = new Expediente(_paciente, _oriCaller, _fechaNacimiento);
         datos.addPaciente(_paciente, address(expediente));
-        pacientes[_paciente] = true;
         //Agregamos el expediente a la lista de expedientes del medico
-        datos.addPacienteToMedico(msg.sender, _paciente);
-        emit AltaExpediente(msg.sender, _paciente);
+        datos.addPacienteToMedico(_oriCaller, _paciente);
+        emit AltaExpediente(_oriCaller, _paciente);
     }
 
     /**
@@ -70,7 +59,7 @@ contract CapaExpedientes is CapaMedicos {
     * @dev Solo el sistema debe poder marcar un expediente como desaparecido
     * @param _paciente La direccion del paciente cuyo expediente se quiere modificar
     */
-    function setExpedienteAsDesaparecido(address _paciente) public onlyAdministrativo onlyPaciente(_paciente) {
+    function setExpedienteAsDesaparecido(address _paciente, address _oriCaller) public onlySistema onlyCrossAdministrativo(_oriCaller) {
         Expediente expediente = Expediente(datos.getExpedienteAddress(_paciente));
         expediente.cambiaEstado(Expediente.Estado.Desaparecido);
     }
@@ -80,7 +69,7 @@ contract CapaExpedientes is CapaMedicos {
     * @dev Solo el sistema debe poder marcar un expediente como aparecido
     * @param _paciente La direccion del paciente cuyo expediente se quiere modificar
     */
-    function setExpedienteAsAparecido(address _paciente) public onlyAdministrativo onlyPaciente(_paciente) {
+    function setExpedienteAsAparecido(address _paciente, address _oriCaller) public onlySistema onlyCrossAdministrativo(_oriCaller) {
         Expediente expediente = Expediente(datos.getExpedienteAddress(_paciente));
         expediente.cambiaEstado(Expediente.Estado.Vivo);
     }
@@ -91,7 +80,7 @@ contract CapaExpedientes is CapaMedicos {
     * @param _medicoFrom Medico del cual se van a transferir los expedientes
     * @param _medicoTo Medico al que se van a transferir los expedientes
     */
-    function transfiereExpedientes(address _medicoFrom, address _medicoTo) public onlyAdministrativo onlyOverMedico(_medicoFrom) onlyOverMedico(_medicoTo) {
+    function transfiereExpedientes(address _medicoFrom, address _medicoTo, address _oriCaller) public onlySistema onlyCrossAdministrativo(_oriCaller) {
         require(_medicoFrom != _medicoTo, "Solo se puede transferir los expedientes a un medico distinto");
         address[] memory expedientesToTransfer = datos.getPacientesFromMedico(_medicoFrom);
         if(expedientesToTransfer.length > 0) {
@@ -102,7 +91,7 @@ contract CapaExpedientes is CapaMedicos {
                 Expediente expediente = Expediente(datos.getExpedienteAddress(expedientesToTransfer[i]));
                 expediente.cambiaMedico(_medicoTo);
                 //Emitimos el evento de traslado
-                emit TrasladoExpediente(expedientesToTransfer[i], _medicoFrom, _medicoTo);
+                emit TrasladoExpediente(expedientesToTransfer[i], _medicoFrom, _medicoTo, _oriCaller);
             }
             //Para acabar borramos todos los expedientes al medico fuente
             datos.removeAllPacientesFromMedico(_medicoFrom);
@@ -114,7 +103,7 @@ contract CapaExpedientes is CapaMedicos {
     * @param _paciente La direccion del paciente cuyo expediente queremos trasladar
     * @param _medicoTo La direccion del medico al que se va a transferir el expediente
     */
-    function transfiereExpediente(address _paciente, address _medicoTo) public onlyAdministrativo onlyPaciente(_paciente) onlyOverMedico(_medicoTo) {
+    function transfiereExpediente(address _paciente, address _medicoTo, address _oriCaller) public onlySistema onlyCrossAdministrativo(_oriCaller) {
         //Primero tenemos que borrarlo de la lista
         Expediente expedienteToTransfer = Expediente(datos.getExpedienteAddress(_paciente));
         address medicoFrom = expedienteToTransfer.getMedicoAsignado();
@@ -126,7 +115,7 @@ contract CapaExpedientes is CapaMedicos {
         //Tenemos que desasignar el expediente del medico anterior
         datos.removePacienteFromMedico(medicoFrom, _paciente);
         //Emitimos el evento de traslado
-        emit TrasladoExpediente(_paciente, medicoFrom, _medicoTo);
+        emit TrasladoExpediente(_paciente, medicoFrom, _medicoTo, _oriCaller);
     }
 
     /**
@@ -134,12 +123,13 @@ contract CapaExpedientes is CapaMedicos {
     * @dev Al cerrar el expediente se desasigna al medico pero no el medico asignado del expediente
     * @param _paciente La direccion del paciente al que se quiere aniadir el expediente
     */
-    function closeExpediente(address _paciente) public onlyMedico onlyPaciente(_paciente) onlyMedicoAsignado(_paciente) {
+    function closeExpediente(address _paciente, address _oriCaller) public onlySistema onlyCrossMedico(_oriCaller) {
+        require(_paciente != _oriCaller, "Ha recompilado");
         Expediente expediente = Expediente(datos.getExpedienteAddress(_paciente));
         //Tenemos que desasignar el expediente al medico
         datos.removePacienteFromMedico(expediente.getMedicoAsignado(), _paciente);
-        expediente.close();
-        emit BajaExpediente(msg.sender, _paciente);
+        expediente.close(_oriCaller);
+        emit BajaExpediente(_oriCaller, _paciente);
     }
 
     /**
@@ -147,7 +137,7 @@ contract CapaExpedientes is CapaMedicos {
     * @param _paciente La direccion del paciente del que se quiere recuperar el expediente
     * @return La informacion del expediente
     */
-    function getExpediente(address _paciente) public view onlyPaciente(_paciente)
+    function getExpediente(address _paciente, address _oriCaller) public view onlySistema
         returns (
             address titular,
             address medicoAsignado,
@@ -159,11 +149,11 @@ contract CapaExpedientes is CapaMedicos {
     {
         Expediente expediente = Expediente(datos.getExpedienteAddress(_paciente));
         if(expediente.getEstado() == Expediente.Estado.Muerto) {
-            require(owner == msg.sender || datos.isAdministrativo(msg.sender), "Solo el propietario o un administrativo pueden consultar expedientes cerrados");
+            require(owner == _oriCaller || datos.isAdministrativo(_oriCaller), "Solo el propietario o un administrativo pueden consultar expedientes cerrados");
         } else {
-            require(expediente.getMedicoAsignado() == msg.sender, "Solo el medico del expediente puede realizar operaciones sobre el");
+            require(datos.isMedico(_oriCaller), "Solo un medico del sistema puede consultar un expediente abierto");
         }
-//        emit ConsultaExpediente(msg.sender, _paciente);
+//        emit ConsultaExpediente(_oriCaller, _paciente);
         return (_paciente,  expediente.getMedicoAsignado(), expediente.getFechaNacimiento(), expediente.getFechaMuerte(), expediente.getEstado(), expediente.getTratamientoAbiertosIds());
     }
 
@@ -172,8 +162,8 @@ contract CapaExpedientes is CapaMedicos {
     * @param _supuestoPaciente La direccion del paciente que hay que comprobar
     * @return Booleano que indica si es paciente o no
     */
-    function isPaciente(address _supuestoPaciente) public view onlyMedicoOrAdministrativo returns (bool) {
-        return pacientes[_supuestoPaciente];
+    function isPaciente(address _supuestoPaciente, address _oriCaller) public view onlySistema onlyCrossMedicoOrAdministrativo(_oriCaller) returns (bool) {
+        return datos.isPaciente(_supuestoPaciente);
     }
 
     /**
@@ -181,7 +171,61 @@ contract CapaExpedientes is CapaMedicos {
     * @param _medico La direccion del medico del que queremos recuperar los pacientes
     * @return Lista de direcciones de sus pacientes
     */
-    function getPacientesFromMedico(address _medico) public view onlyMedicoOrAdministrativo onlyOverMedico(_medico) returns (address[]) {
+    function getPacientesFromMedico(address _medico, address _oriCaller) public view onlySistema onlyCrossMedicoOrAdministrativo(_oriCaller) returns (address[]) {
         return datos.getPacientesFromMedico(_medico);
+    }
+
+    /****************************************************************************************/
+    /*********************************** TRATAMIENTOS ***************************************/
+    /****************************************************************************************/
+
+    /**
+    * @notice Aniade un nuevo tratamiento a un expediente existente
+    * @param _paciente La direccion del paciente al que se quiere aniadir el tratamiento
+    * @param _dolencia Dolencia de la que se queja el paciente
+    * @param _descripcion Descripcion del tratamiento a seguir
+    * @return El identificador del nuevo tratamiento
+    */
+    function addTratamientoToExpediente(address _paciente, string _dolencia, string _descripcion, address _oriCaller) public onlySistema onlyCrossMedico(_oriCaller) returns(uint) {
+        Expediente expediente = Expediente(datos.getExpedienteAddress(_paciente));
+        return expediente.addTratamiento(_dolencia, _descripcion, _oriCaller);
+    }
+
+    /**
+    * @notice Modifica un tratamiento a un expediente existente
+    * @param _paciente La direccion del paciente al que se quiere aniadir el tratamiento
+    * @param _idxTratamiento El identificador del tratamiento
+    * @param _descripcion Descripcion del tratamiento a seguir
+    */
+    function updateTratamientoToExpediente(address _paciente, uint _idxTratamiento, string _descripcion, address _oriCaller) public onlySistema onlyCrossMedico(_oriCaller) {
+        Expediente expediente = Expediente(datos.getExpedienteAddress(_paciente));
+        expediente.updateTratamiento(_idxTratamiento, _descripcion, _oriCaller);
+    }
+
+    /**
+    * @notice Modifica un tratamiento a un expediente existente
+    * @param _paciente La direccion del paciente al que se quiere cerrar el tratamiento
+    * @param _idxTratamiento El identificador del tratamiento
+    */
+    function closeTratamientoToExpediente(address _paciente, uint _idxTratamiento, address _oriCaller) public onlySistema onlyCrossMedico(_oriCaller) {
+        Expediente expediente = Expediente(datos.getExpedienteAddress(_paciente));
+        expediente.closeTratamiento(_idxTratamiento, _oriCaller);
+    }
+
+    /**
+    * @notice Obtiene el tratamiento de un expediente
+    * @param _paciente La direccion del paciente del que se quiere recuperar el tratamiento
+    * @param _idxTratamiento El identificador del tratamiento
+    */
+    function getTratamientoFromExpediente(address _paciente, uint _idxTratamiento, address _oriCaller) public view onlySistema onlyCrossMedico(_oriCaller)
+        returns (
+            uint fechaInicio,
+            uint fechaFin,
+            string dolencia,
+            string descripcion
+        )
+    {
+        Expediente expediente = Expediente(datos.getExpedienteAddress(_paciente));
+        return expediente.getTratamiento(_idxTratamiento);
     }
 }

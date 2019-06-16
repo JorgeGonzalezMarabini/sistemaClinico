@@ -8,14 +8,23 @@ web3.setProvider(ganache.provider({gasLimit: 1000000000, total_accounts: 6}));
 const contracts = require('../compile');
 const sistemaClinicoContract = contracts["SistemaClinico.sol"].SistemaClinico;
 const datosContract = contracts["DatosSistemaClinico.sol"].DatosSistemaClinico;
+const adminContract = contracts["sistema/CapaAdministrativa.sol"].CapaAdministrativa;
+const medicosContract = contracts["sistema/CapaMedicos.sol"].CapaMedicos;
+const expedientesContract = contracts["sistema/CapaExpedientes.sol"].CapaExpedientes;
 
 
 let accounts;
 let sistemaClinico;
 let datosSistemaClinico;
+let capaAdministrativa;
+let capaMedicos;
+let capaExpedientes;
 
 let sistemaAddress;
 let datosSistemaAddress;
+let capaAdministrativaAddress;
+let capaMedicosAddress;
+let capaExpedientesAddress;
 
 let ownerAddress;
 let medicoAddress;
@@ -60,6 +69,30 @@ before(async () => {
             })
             .send({from: ownerAddress, gas: '3000000'});
     datosSistemaAddress = datosSistemaClinico.options.address;
+    //Desplegamos la capa administrativa
+    capaAdministrativa = await new web3.eth.Contract(adminContract.abi)
+                .deploy({
+                    data: adminContract.evm.bytecode.object,
+                    arguments: [sistemaAddress, datosSistemaAddress]
+                })
+                .send({from: ownerAddress, gas: '3000000'});
+    capaAdministrativaAddress = capaAdministrativa.options.address;
+    //Desplegamos la capa medicos
+    capaMedicos = await new web3.eth.Contract(medicosContract.abi)
+                .deploy({
+                    data: medicosContract.evm.bytecode.object,
+                    arguments: [sistemaAddress, datosSistemaAddress]
+                })
+                .send({from: ownerAddress, gas: '3000000'});
+    capaMedicosAddress = capaMedicos.options.address;
+    //Desplegamos la capa expedientes
+    capaExpedientes = await new web3.eth.Contract(expedientesContract.abi)
+                .deploy({
+                    data: expedientesContract.evm.bytecode.object,
+                    arguments: [sistemaAddress, datosSistemaAddress]
+                })
+                .send({from: ownerAddress, gas: '30000000'});
+    capaExpedientesAddress = capaExpedientes.options.address;
 });
 
 describe('SistemaClinico-TrasladoExpediente', () => {
@@ -67,8 +100,17 @@ describe('SistemaClinico-TrasladoExpediente', () => {
     it('primisas del test', async () => {
         assert.ok(sistemaAddress);
         assert.ok(datosSistemaAddress);
-        //Asignamos al sistema el contrato de los datos
-        await sistemaClinico.methods.setDatosAddress(datosSistemaAddress).send({from: ownerAddress, gas: '9000000'});
+        assert.ok(capaAdministrativaAddress);
+        assert.ok(capaMedicosAddress);
+        assert.ok(capaExpedientesAddress);
+        //Agregamos la capa de servicios como servicios autorizados al acceso de los datos del sistema
+        await datosSistemaClinico.methods.addServicioSistemaClinico(capaAdministrativaAddress).send({from: ownerAddress, gas: '9000000'});
+        await datosSistemaClinico.methods.addServicioSistemaClinico(capaMedicosAddress).send({from: ownerAddress, gas: '9000000'});
+        await datosSistemaClinico.methods.addServicioSistemaClinico(capaExpedientesAddress).send({from: ownerAddress, gas: '9000000'});
+        //Informamos al sisitema clinico de la capa de servicios
+        await sistemaClinico.methods.setCapaAdministrativa(capaAdministrativaAddress).send({from: ownerAddress, gas: '9000000'});
+        await sistemaClinico.methods.setCapaMedicos(capaMedicosAddress).send({from: ownerAddress, gas: '9000000'});
+        await sistemaClinico.methods.setCapaExpedientes(capaExpedientesAddress).send({from: ownerAddress, gas: '9000000'});
         //Aniadimos un nuevo administrativo
         await sistemaClinico.methods.addAdministrativo(administrativoAddress).send({from: ownerAddress, gas: '9000000'});
         assert.ok(await sistemaClinico.methods.isAdministrativo(administrativoAddress).call({from: ownerAddress}));
@@ -104,10 +146,11 @@ describe('SistemaClinico-TrasladoExpediente', () => {
         var result = await sistemaClinico.methods.transfiereExpediente(pacientesMedicoBefore[0], otherMedicoAddress).send({from: administrativoAddress, gas: '9000000'});
 
         //Comprobamos el evento
-        var evento = result.events.TrasladoExpediente;
-        assert.strictEqual(evento.returnValues._newMedico, otherMedicoAddress);
-        assert.strictEqual(evento.returnValues._oldMedico, medicoAddress);
-        assert.strictEqual(evento.returnValues._paciente, paciente1Address);
+        const evento = web3.eth.abi.decodeParameters(['address', 'address', 'address', 'address'], result.events['0'].raw.data);
+        assert.strictEqual(evento['0'], paciente1Address);
+        assert.strictEqual(evento['1'], medicoAddress);
+        assert.strictEqual(evento['2'], otherMedicoAddress);
+        assert.strictEqual(evento['3'], administrativoAddress);
         //Comprobamos el expediente tiene el nuevo medico asignado
         var expediente1After = await sistemaClinico.methods.getExpediente(pacientesMedicoBefore[0]).call({from: otherMedicoAddress});
         assert.strictEqual(expediente1After.medicoAsignado, otherMedicoAddress);

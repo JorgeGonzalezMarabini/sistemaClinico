@@ -27,6 +27,15 @@ function createConfiguration() {
             'SistemaClinico.sol': {
                 content: fs.readFileSync(path.resolve(__dirname, 'contracts', 'SistemaClinico.sol'), 'utf8')
             },
+            'sistema/CapaAdministrativa.sol': {
+                content: fs.readFileSync(path.resolve(__dirname, 'contracts', 'sistema', 'CapaAdministrativa.sol'), 'utf8')
+            },
+            'sistema/CapaMedicos.sol': {
+                content: fs.readFileSync(path.resolve(__dirname, 'contracts', 'sistema', 'CapaMedicos.sol'), 'utf8')
+            },
+            'sistema/CapaExpedientes.sol': {
+                content: fs.readFileSync(path.resolve(__dirname, 'contracts', 'sistema', 'CapaExpedientes.sol'), 'utf8')
+            },
             'SistemaClinicoProxy.sol': {
                 content: fs.readFileSync(path.resolve(__dirname, 'contracts', 'SistemaClinicoProxy.sol'), 'utf8')
             }
@@ -76,14 +85,12 @@ function getImports(dependency) {
             return {contents: fs.readFileSync(path.resolve(__dirname, 'contracts', 'utils', 'Arrays.sol'), 'utf8')};
         case 'sistema/BaseSistemaClinico.sol':
             return {contents: fs.readFileSync(path.resolve(__dirname, 'contracts', 'sistema', 'BaseSistemaClinico.sol'), 'utf8')};
-        case 'sistema/CapaAdministrativa.sol':
-            return {contents: fs.readFileSync(path.resolve(__dirname, 'contracts', 'sistema', 'CapaAdministrativa.sol'), 'utf8')};
-        case 'sistema/CapaMedicos.sol':
-            return {contents: fs.readFileSync(path.resolve(__dirname, 'contracts', 'sistema', 'CapaMedicos.sol'), 'utf8')};
-        case 'sistema/CapaExpedientes.sol':
-            return {contents: fs.readFileSync(path.resolve(__dirname, 'contracts', 'sistema', 'CapaExpedientes.sol'), 'utf8')};
-        case 'sistema/CapaTratamientos.sol':
-            return {contents: fs.readFileSync(path.resolve(__dirname, 'contracts', 'sistema', 'CapaTratamientos.sol'), 'utf8')};
+        case 'sistemaInterface/CapaAdministrativaInterface.sol':
+            return {contents: fs.readFileSync(path.resolve(__dirname, 'contracts', 'sistemaInterface', 'CapaAdministrativaInterface.sol'), 'utf8')};
+        case 'sistemaInterface/CapaMedicosInterface.sol':
+            return {contents: fs.readFileSync(path.resolve(__dirname, 'contracts', 'sistemaInterface', 'CapaMedicosInterface.sol'), 'utf8')};
+        case 'sistemaInterface/CapaExpedientesInterface.sol':
+            return {contents: fs.readFileSync(path.resolve(__dirname, 'contracts', 'sistemaInterface', 'CapaExpedientesInterface.sol'), 'utf8')};
         default:
             return {error: 'File not found'}
     }
@@ -112,7 +119,9 @@ function writeOutput(compiled, buildPath) {
     fs.ensureDirSync(buildPath);
 
     for (let contractFileName in compiled.contracts) {
-        const contractName = contractFileName.replace('.sol', '');
+        var contractName = contractFileName.replace('.sol', '');
+        var idx = contractFileName.lastIndexOf("/");
+        if(idx !== -1) contractName = contractName.substr(idx + 1);
         if(compiled.contracts[contractFileName][contractName])
         {
             console.log('Writing: ', contractName + '.json');
