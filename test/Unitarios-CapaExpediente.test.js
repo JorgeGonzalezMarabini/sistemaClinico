@@ -74,7 +74,7 @@ before(async () => {
     capaExpedientesAddress = capaExpedientes.options.address;
 });
 
-describe('Mierda', () => {
+describe('Unitarios-CapaExpedientes', () => {
 
     it('desplegar los contratos', async () => {
         assert.ok(sistemaAddress);

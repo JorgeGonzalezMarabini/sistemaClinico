@@ -155,6 +155,14 @@ contract SistemaClinico is Owned {
     }
 
     /**
+    * @notice Lanza el evento de consulta de expediente
+    * @param _paciente La direccion del paciente del que se ha recuperado el expediente
+    */
+    function registraConsultaExpediente(address _paciente) public {
+        capaExp.registraConsultaExpediente(_paciente, msg.sender);
+    }
+
+    /**
     * @notice Retorna la informacion de un expediente
     * @param _paciente La direccion del paciente del que se quiere recuperar el expediente
     * @return La informacion del expediente
@@ -165,7 +173,7 @@ contract SistemaClinico is Owned {
             address medicoAsignado,
             uint fechaNacimiento,
             uint fechaMuerte,
-            Expediente.Estado estado,
+            uint estado,
             uint[] tratamientosAbiertos
         ) {
         return capaExp.getExpediente(_paciente, msg.sender);
@@ -221,6 +229,16 @@ contract SistemaClinico is Owned {
     */
     function closeTratamientoToExpediente(address _paciente, uint _idxTratamiento) public {
         capaExp.closeTratamientoToExpediente(_paciente, _idxTratamiento, msg.sender);
+    }
+
+    /**
+    * @notice Lanza el evento de consulta de tratamiento
+    * @dev Esto deberia lanzarse automaticamente al consultar el tratamiento
+    * @param _paciente La direccion del paciente
+    * @param _idxTratamiento El identificador del tratamiendo que queremos recuperar
+    */
+    function registraConsultaTratamiento(address _paciente, uint _idxTratamiento) public {
+        return capaExp.registraConsultaTratamiento(_paciente, _idxTratamiento, msg.sender);
     }
 
     /**

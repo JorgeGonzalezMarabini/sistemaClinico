@@ -176,6 +176,13 @@ describe('SistemaClinico-Tratamientos', () => {
         assert.strictEqual(fechaFin, '0');
         assert.strictEqual(dolencia, DOLENCIA_TEXT);
         assert.strictEqual(descripcion, TRATAMIENTO_PRELIMINAR_TEXT);
+
+        const result = await sistemaClinico.methods.registraConsultaTratamiento(pacienteAddress, tratamientoId).send({from: medicoAddress, gas: '9000000'});
+        //Comprobamos el evento de consulta de tratamiento
+        const evento = web3.eth.abi.decodeParameters(['address', 'address', 'uint'], result.events['0'].raw.data);
+        assert.strictEqual(evento['0'], pacienteAddress);
+        assert.strictEqual(evento['1'], medicoAddress);
+        assert.strictEqual(evento['2'], tratamientoId);
     });
 
     /******************************** GET TRATAMIENTO ERRORS **************************************/

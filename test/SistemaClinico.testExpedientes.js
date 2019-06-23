@@ -178,6 +178,12 @@ describe('SistemaClinico-Expedientes', () => {
         assert.strictEqual(expediente.fechaMuerte, '0');
         assert.strictEqual(expediente.estado, '0');
         assert.strictEqual(expediente.tratamientosAbiertos.length, 1);
+        
+        const result = await sistemaClinico.methods.registraConsultaExpediente(pacienteAddress).send({from: medicoAddress, gas: '9000000'});
+        //Comprobamos el evento de consulta de expediente
+        const evento = web3.eth.abi.decodeParameters(['address', 'address'], result.events['0'].raw.data);
+        assert.strictEqual(evento['0'], medicoAddress);
+        assert.strictEqual(evento['1'], pacienteAddress);
     });
 
     /******************************** GET EXPEDIENTE ERRORS **************************************/

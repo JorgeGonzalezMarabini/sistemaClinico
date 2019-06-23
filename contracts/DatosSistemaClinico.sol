@@ -174,18 +174,36 @@ contract DatosSistemaClinico is Owned {
         pacientes[_pacienteToAdd] = true;
     }
 
+    /**
+    * @notice Agrega un paciente a la lista de pacientes del medico
+    * @param _medico La direccion del medico al que se quiere agregar al paciente
+    * @param _paciente La direccion del paciente a agregar
+    */
     function addPacienteToMedico(address _medico, address _paciente) public onlyServicioSistema onlyOverMedico(_medico) onlyOverPaciente(_paciente) {
         pacientesByMedico[_medico].push(_paciente);
     }
 
+    /**
+    * @notice Elimina un paciente de la lista de pacientes del medico
+    * @param _medico La direccion del medico del que se quiere eliminar el paciente
+    * @param _paciente La direccion del paciente a eliminar
+    */
     function removePacienteFromMedico(address _medico, address _paciente) public onlyServicioSistema onlyOverMedico(_medico) onlyOverPaciente(_paciente) {
         pacientesByMedico[_medico].deleteByAddress(_paciente);
     }
 
+    /**
+    * @notice Elimina todos los pacientes de la lista de pacientes del medico
+    * @param _medico La direccion del medico del que se quiere eliminar los pacientes
+    */
     function removeAllPacientesFromMedico(address _medico) public onlyServicioSistema onlyOverMedico(_medico) {
         pacientesByMedico[_medico].length = 0;
     }
 
+    /**
+    * @notice Obtiene todos los pacientes de un medico
+    * @param _medico La direccion del medico del que se quiere recuperar los pacientes
+    */
     function getPacientesFromMedico(address _medico) public view onlyServicioSistema onlyOverMedico(_medico) returns (address[]) {
         return pacientesByMedico[_medico];
     }

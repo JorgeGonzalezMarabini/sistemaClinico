@@ -1,7 +1,6 @@
 pragma solidity ^0.4.25;
 
 import "./utils/Arrays.sol";
-import "./Owned.sol";
 
 //todo: Hacerlo Ownable para la migracion?
 
@@ -12,7 +11,7 @@ contract Expediente {
     event AltaTratamiento(address _titular, address _medico, uint _idxTratamiento);
     event ModificacionTratamiento(address _titular, address _medico, uint _idxTratamiento);
     event BajaTratamiento(address _titular, address _medico, uint _idxTratamiento);
-//    event ConsultaTratamiento(address _titular, address _medico, uint _idxTratamiento);
+    event ConsultaTratamiento(address _paciente, address _medico, uint _idxTratamiento);
 
     enum Estado {
         Vivo,
@@ -188,6 +187,17 @@ contract Expediente {
     }
 
     /**
+    * @notice Lanza el evento de consulta de tratamiento
+    * @dev Esto deberia lanzarse automaticamente al consultar el tratamiento
+    * @param _paciente La direccion del paciente
+    * @param _medico La direccion del medico
+    * @param _idxTratamiento El identificador del tratamiendo que queremos recuperar
+    */
+    function registraConsultaTratamiento(address _paciente, address _medico, uint _idxTratamiento) public onlySistema {
+        emit ConsultaTratamiento(_paciente, _medico, _idxTratamiento);
+    }
+    
+    /**
     * @notice Devuelve la informacion de un tratamiento
     * @param _idxTratamiento El identificador del tratamiendo que queremos recuperar
     * @return La informacion del tratamiento
@@ -201,7 +211,6 @@ contract Expediente {
         )
     {
         Tratamiento memory tratamiento = tratamientos[_idxTratamiento];
-//        emit ConsultaTratamiento(titular, medicoAsignado, _idxTratamiento);
         return (tratamiento.fechaInicio, tratamiento.fechaFin, tratamiento.dolencia, tratamiento.descripcion);
     }
 
